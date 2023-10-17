@@ -1,9 +1,13 @@
+#![feature(iter_intersperse)]
+
 //! My iPod had it's clock reset to 2001, and scrobbles have the incorrect date.
 //!
 //! Parse the Rockbox scrobbler.log file, identify scrobbles with suspicious dates, and fix them.
 //!
 //! AUDIOSCROBBLER/1.1 format is documented here:
 //! - <https://github.com/Rockbox/rockbox/blob/3c89adbdbdd036baf313786b0694632c8e7e2bb3/apps/plugins/lastfm_scrobbler.c#L29>
+
+use std::fmt::Display;
 
 use chrono::{DateTime, Days, FixedOffset, Local, TimeZone};
 use nom::{
@@ -41,8 +45,12 @@ fn main() -> std::io::Result<()> {
         .map(|input| Scrobble::new(input).and_then(|scrobble| Ok(fix_scrobble(cutoff, scrobble))))
         .collect::<Result<Vec<Scrobble>, _>>()
         .unwrap();
-    println!("{scrobbles:#?}");
-    Ok(())
+    let output: String = scrobbles
+        .iter()
+        .map(std::string::ToString::to_string)
+        .intersperse("\n".to_string())
+        .collect();
+    Ok(println!("{output}"))
 }
 
 #[derive(Debug)]
@@ -60,6 +68,12 @@ struct Scrobble {
     song_duration: u32, // seconds
     rating: Rating,
     timestamp: DateTime<Local>,
+}
+
+impl std::fmt::Display for Scrobble {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{self:?}") // TODO
+    }
 }
 
 impl Scrobble {
