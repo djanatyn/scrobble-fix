@@ -30,11 +30,15 @@ fn main() -> std::io::Result<()> {
     for scrobble in scrobbles {
         if scrobble.timestamp < cutoff {
             println!("suspicious: {scrobble:#?}");
-            let updated = scrobble
+            let updated_timestamp = scrobble
                 .timestamp
                 .checked_add_days(Days::new(SCROBBLE_DAYS_OFFSET))
                 .expect("failed to apply offset");
-            println!("updated: {updated:?}");
+            let updated = Scrobble {
+                timestamp: updated_timestamp,
+                ..scrobble
+            };
+            println!("updated: {updated:#?}");
         }
     }
     Ok(())
