@@ -24,18 +24,18 @@ const HEADER: &str = r#"#AUDIOSCROBBLER/1.1
 #CLIENT/Rockbox ipodvideo $Revision$
 "#;
 
-fn fix_scrobble(cutoff: DateTime<FixedOffset>, scrobble: Scrobble) -> Scrobble {
+fn fix_scrobble(cutoff: DateTime<FixedOffset>, scrobble: Scrobble) -> Result<Scrobble, String> {
     if scrobble.timestamp > cutoff {
-        return scrobble;
+        return Ok(scrobble);
     }
     let updated_timestamp = scrobble
         .timestamp
         .checked_add_days(Days::new(SCROBBLE_DAYS_OFFSET))
-        .expect("failed to apply offset");
-    Scrobble {
+        .ok_or("failed to apply offset")?;
+    Ok(Scrobble {
         timestamp: updated_timestamp,
         ..scrobble
-    }
+    })
 }
 
 fn main() -> std::io::Result<()> {
@@ -46,7 +46,8 @@ fn main() -> std::io::Result<()> {
         .lines()
         .skip(3)
         .map(|input| {
-            Scrobble::new(input).map(|scrobble| fix_scrobble(cutoff, scrobble).to_string())
+            Scrobble::new(input)
+                .and_then(|scrobble| fix_scrobble(cutoff, scrobble).map(|fixed| fixed.to_string()))
         })
         .intersperse(Ok("\n".to_string()))
         .collect::<Result<String, _>>()
