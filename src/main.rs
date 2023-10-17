@@ -21,6 +21,11 @@ const SCROBBLE_CUTOFF: &str = "2005-01-01T00:00:00Z";
 /// Number of days to add to the suspicious scrobbles.
 const SCROBBLE_DAYS_OFFSET: u64 = (365 * 22) + 215;
 
+const HEADER: &str = r#"#AUDIOSCROBBLER/1.1
+#TZ/UNKNOWN
+#CLIENT/Rockbox ipodvideo $Revision$
+"#;
+
 fn fix_scrobble(cutoff: DateTime<FixedOffset>, scrobble: Scrobble) -> Scrobble {
     if scrobble.timestamp > cutoff {
         return scrobble;
@@ -48,7 +53,7 @@ fn main() -> std::io::Result<()> {
         .intersperse(Ok("\n".to_string()))
         .collect::<Result<String, _>>()
         .unwrap();
-    Ok(println!("{scrobbles}"))
+    Ok(println!("{HEADER}{scrobbles}"))
 }
 
 #[derive(Debug)]
@@ -75,6 +80,7 @@ struct Scrobble {
     song_duration: u32, // seconds
     rating: Rating,
     timestamp: DateTime<Local>,
+    track_id: Option<String>,
 }
 
 impl std::fmt::Display for Scrobble {
@@ -91,7 +97,8 @@ impl std::fmt::Display for Scrobble {
                     .map_or("".to_string(), |p| p.to_string()),
                 &self.song_duration.to_string(),
                 &self.rating.to_string(),
-                &self.timestamp.timestamp().to_string()
+                &self.timestamp.timestamp().to_string(),
+                &self.track_id.clone().unwrap_or("".to_string())
             ]
             .into_iter()
             .intersperse(&"\t".to_string())
@@ -140,6 +147,10 @@ fn parse_scrobble(input: &str) -> IResult<&str, Scrobble> {
                     0,
                 )
                 .unwrap(),
+            track_id: match rest {
+                "" => None,
+                id => Some(id.to_string()),
+            },
         },
     ))
 }
