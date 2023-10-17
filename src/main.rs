@@ -22,11 +22,9 @@ fn main() -> std::io::Result<()> {
     let scrobbles: Vec<Scrobble> = log
         .lines()
         .skip(3)
-        .map(|i| {
-            let (_, scrobble) = parse_scrobble(i).unwrap();
-            scrobble
-        })
-        .collect();
+        .map(Scrobble::new)
+        .collect::<Result<Vec<Scrobble>, _>>()
+        .unwrap();
     let cutoff =
         DateTime::parse_from_rfc3339(SCROBBLE_CUTOFF).expect("failed to parse cutoff date");
     for scrobble in scrobbles {
@@ -57,6 +55,15 @@ struct Scrobble {
     song_duration: u32,          // seconds
     rating: Rating,
     timestamp: DateTime<Local>,
+}
+
+impl Scrobble {
+    fn new(input: &str) -> Result<Self, String> {
+        match parse_scrobble(input) {
+            Ok((_, scrobble)) => Ok(scrobble),
+            Err(e) => Err(e.to_string()),
+        }
+    }
 }
 
 fn parse_scrobble_token(input: &str) -> IResult<&str, &str> {
@@ -96,14 +103,7 @@ fn parse_scrobble(input: &str) -> IResult<&str, Scrobble> {
 #[test]
 fn parse_line() -> std::io::Result<()> {
     let log = std::fs::read_to_string("scrobbler.log")?;
-    let scrobbles: Vec<Scrobble> = log
-        .lines()
-        .skip(3)
-        .map(|i| {
-            let (_, scrobble) = parse_scrobble(dbg!(i)).unwrap();
-            scrobble
-        })
-        .collect();
+    let scrobbles: Vec<Scrobble> = log.lines().skip(3).map(Scrobble::new).collect();
     dbg!(scrobbles);
     Ok(())
 }
