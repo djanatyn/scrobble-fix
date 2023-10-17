@@ -5,7 +5,7 @@
 //! AUDIOSCROBBLER/1.1 format is documented here:
 //! - <https://github.com/Rockbox/rockbox/blob/3c89adbdbdd036baf313786b0694632c8e7e2bb3/apps/plugins/lastfm_scrobbler.c#L29>
 
-use chrono::{DateTime, Days, Local, TimeZone};
+use chrono::{DateTime, Days, FixedOffset, Local, TimeZone};
 use nom::{
     bytes::complete::take_until, character::complete::char, multi::count, sequence::terminated,
     IResult,
@@ -17,6 +17,20 @@ const SCROBBLE_CUTOFF: &str = "2005-01-01T00:00:00Z";
 /// Number of days to add to the suspicious scrobbles.
 const SCROBBLE_DAYS_OFFSET: u64 = (365 * 22) + 215;
 
+fn fix_scrobble(cutoff: DateTime<FixedOffset>, scrobble: Scrobble) -> Scrobble {
+    if scrobble.timestamp > cutoff {
+        return scrobble;
+    }
+    let updated_timestamp = scrobble
+        .timestamp
+        .checked_add_days(Days::new(SCROBBLE_DAYS_OFFSET))
+        .expect("failed to apply offset");
+    return Scrobble {
+        timestamp: updated_timestamp,
+        ..scrobble
+    };
+}
+
 fn main() -> std::io::Result<()> {
     let cutoff =
         DateTime::parse_from_rfc3339(SCROBBLE_CUTOFF).expect("failed to parse cutoff date");
@@ -24,23 +38,10 @@ fn main() -> std::io::Result<()> {
     let scrobbles: Vec<Scrobble> = log
         .lines()
         .skip(3)
-        .map(Scrobble::new)
+        .map(|input| Scrobble::new(input).and_then(|scrobble| Ok(fix_scrobble(cutoff, scrobble))))
         .collect::<Result<Vec<Scrobble>, _>>()
         .unwrap();
-    for scrobble in scrobbles {
-        if scrobble.timestamp < cutoff {
-            println!("suspicious: {scrobble:#?}");
-            let updated_timestamp = scrobble
-                .timestamp
-                .checked_add_days(Days::new(SCROBBLE_DAYS_OFFSET))
-                .expect("failed to apply offset");
-            let updated = Scrobble {
-                timestamp: updated_timestamp,
-                ..scrobble
-            };
-            println!("updated: {updated:#?}");
-        }
-    }
+    println!("{scrobbles:#?}");
     Ok(())
 }
 
