@@ -108,10 +108,32 @@ impl std::fmt::Display for Scrobble {
 
 impl Scrobble {
     fn new(input: &str) -> Result<Self, String> {
-        match parse_scrobble(input) {
-            Ok((_, scrobble)) => Ok(scrobble),
-            Err(e) => Err(e.to_string()),
-        }
+        let (rest, tokens) = match parse_scrobble(input) {
+            Ok((rest, tokens)) => (rest, tokens),
+            Err(e) => Err(e.to_string())?,
+        };
+        Ok(Scrobble {
+            artist: tokens[0].to_string(),
+            album: tokens[1].to_string(),
+            track: tokens[2].to_string(),
+            track_position: match tokens[3] {
+                "" => None,
+                pos => Some(pos.parse::<u32>().map_err(|e| e.to_string())?),
+            },
+            song_duration: tokens[4].parse::<u32>().map_err(|e| e.to_string())?,
+            rating: match tokens[5] {
+                "S" => Rating::Skipped,
+                "L" => Rating::Listened,
+                _ => Err("failed to parse rating")?,
+            },
+            timestamp: chrono::Local
+                .timestamp_opt(tokens[6].parse::<i64>().map_err(|e| e.to_string())?, 0)
+                .unwrap(),
+            track_id: match rest {
+                "" => None,
+                id => Some(id.to_string()),
+            },
+        })
     }
 }
 
@@ -119,44 +141,17 @@ fn parse_scrobble_token(input: &str) -> IResult<&str, &str> {
     terminated(take_until("\t"), char('\t'))(input)
 }
 
-fn parse_scrobble(input: &str) -> IResult<&str, Scrobble> {
-    let (rest, tokens) = count(parse_scrobble_token, 7)(input)?;
-    Ok((
-        rest,
-        Scrobble {
-            artist: tokens[0].to_string(),
-            album: tokens[1].to_string(),
-            track: tokens[2].to_string(),
-            track_position: match tokens[3] {
-                "" => None,
-                pos => Some(pos.parse::<u32>().expect("failed to parse track position")),
-            },
-            song_duration: tokens[4]
-                .parse::<u32>()
-                .expect("failed to parse song duration"),
-            rating: match tokens[5] {
-                "S" => Rating::Skipped,
-                "L" => Rating::Listened,
-                _ => panic!("failed to parse rating"),
-            },
-            timestamp: chrono::Local
-                .timestamp_opt(
-                    tokens[6].parse::<i64>().expect("failed to parse timestamp"),
-                    0,
-                )
-                .unwrap(),
-            track_id: match rest {
-                "" => None,
-                id => Some(id.to_string()),
-            },
-        },
-    ))
+fn parse_scrobble(input: &str) -> IResult<&str, Vec<&str>> {
+    count(parse_scrobble_token, 7)(input)
 }
 
 #[test]
 fn parse_line() -> std::io::Result<()> {
     let log = std::fs::read_to_string("scrobbler.log")?;
-    let scrobbles: Vec<Scrobble> = log.lines().skip(3).map(Scrobble::new).collect();
-    dbg!(scrobbles);
-    Ok(())
+    let scrobbles: Result<Vec<Scrobble>, String> = log
+        .lines()
+        .skip(3)
+        .map(|input| Scrobble::new(input))
+        .collect();
+    Ok(println!("{scrobbles:#?}"))
 }
