@@ -7,8 +7,6 @@
 //! AUDIOSCROBBLER/1.1 format is documented here:
 //! - <https://github.com/Rockbox/rockbox/blob/3c89adbdbdd036baf313786b0694632c8e7e2bb3/apps/plugins/lastfm_scrobbler.c#L29>
 
-use std::fmt::Display;
-
 use chrono::{DateTime, Days, FixedOffset, Local, TimeZone};
 use nom::{
     bytes::complete::take_until, character::complete::char, multi::count, sequence::terminated,
@@ -34,10 +32,10 @@ fn fix_scrobble(cutoff: DateTime<FixedOffset>, scrobble: Scrobble) -> Scrobble {
         .timestamp
         .checked_add_days(Days::new(SCROBBLE_DAYS_OFFSET))
         .expect("failed to apply offset");
-    return Scrobble {
+    Scrobble {
         timestamp: updated_timestamp,
         ..scrobble
-    };
+    }
 }
 
 fn main() -> std::io::Result<()> {
@@ -48,7 +46,7 @@ fn main() -> std::io::Result<()> {
         .lines()
         .skip(3)
         .map(|input| {
-            Scrobble::new(input).and_then(|scrobble| Ok(fix_scrobble(cutoff, scrobble).to_string()))
+            Scrobble::new(input).map(|scrobble| fix_scrobble(cutoff, scrobble).to_string())
         })
         .intersperse(Ok("\n".to_string()))
         .collect::<Result<String, _>>()
