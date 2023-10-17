@@ -18,6 +18,8 @@ const SCROBBLE_CUTOFF: &str = "2005-01-01T00:00:00Z";
 const SCROBBLE_DAYS_OFFSET: u64 = (365 * 22) + 215;
 
 fn main() -> std::io::Result<()> {
+    let cutoff =
+        DateTime::parse_from_rfc3339(SCROBBLE_CUTOFF).expect("failed to parse cutoff date");
     let log = std::fs::read_to_string("scrobbler.log")?;
     let scrobbles: Vec<Scrobble> = log
         .lines()
@@ -25,8 +27,6 @@ fn main() -> std::io::Result<()> {
         .map(Scrobble::new)
         .collect::<Result<Vec<Scrobble>, _>>()
         .unwrap();
-    let cutoff =
-        DateTime::parse_from_rfc3339(SCROBBLE_CUTOFF).expect("failed to parse cutoff date");
     for scrobble in scrobbles {
         if scrobble.timestamp < cutoff {
             println!("suspicious: {scrobble:#?}");
