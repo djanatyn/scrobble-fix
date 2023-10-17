@@ -39,18 +39,16 @@ fn main() -> std::io::Result<()> {
     let cutoff =
         DateTime::parse_from_rfc3339(SCROBBLE_CUTOFF).expect("failed to parse cutoff date");
     let log = std::fs::read_to_string("scrobbler.log")?;
-    let scrobbles: Vec<Scrobble> = log
+    let scrobbles: String = log
         .lines()
         .skip(3)
-        .map(|input| Scrobble::new(input).and_then(|scrobble| Ok(fix_scrobble(cutoff, scrobble))))
-        .collect::<Result<Vec<Scrobble>, _>>()
+        .map(|input| {
+            Scrobble::new(input).and_then(|scrobble| Ok(fix_scrobble(cutoff, scrobble).to_string()))
+        })
+        .intersperse(Ok("\n".to_string()))
+        .collect::<Result<String, _>>()
         .unwrap();
-    let output: String = scrobbles
-        .iter()
-        .map(std::string::ToString::to_string)
-        .intersperse("\n".to_string())
-        .collect();
-    Ok(println!("{output}"))
+    Ok(println!("{scrobbles}"))
 }
 
 #[derive(Debug)]
