@@ -57,6 +57,15 @@ enum Rating {
     Skipped,
 }
 
+impl std::fmt::Display for Rating {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self {
+            Rating::Listened => write!(f, "L"),
+            Rating::Skipped => write!(f, "S"),
+        }
+    }
+}
+
 #[derive(Debug)]
 struct Scrobble {
     artist: String,
@@ -70,7 +79,25 @@ struct Scrobble {
 
 impl std::fmt::Display for Scrobble {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{self:?}") // TODO
+        write!(
+            f,
+            "{}",
+            [
+                &self.artist,
+                &self.album,
+                &self.track,
+                &self
+                    .track_position
+                    .map_or("".to_string(), |p| p.to_string()),
+                &self.song_duration.to_string(),
+                &self.rating.to_string(),
+                &self.timestamp.timestamp().to_string()
+            ]
+            .into_iter()
+            .intersperse(&"\t".to_string())
+            .cloned()
+            .collect::<String>()
+        )
     }
 }
 
