@@ -51,8 +51,8 @@ struct Scrobble {
     artist: String,
     album: String,
     track: String,
-    track_position: Option<u32>, // TODO: Option<u32>
-    song_duration: u32,          // seconds
+    track_position: Option<u32>,
+    song_duration: u32, // seconds
     rating: Rating,
     timestamp: DateTime<Local>,
 }
