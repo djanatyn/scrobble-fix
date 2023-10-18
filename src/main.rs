@@ -24,20 +24,6 @@ const HEADER: &str = r#"#AUDIOSCROBBLER/1.1
 #CLIENT/Rockbox ipodvideo $Revision$
 "#;
 
-fn fix_scrobble(cutoff: DateTime<FixedOffset>, scrobble: Scrobble) -> Result<Scrobble, String> {
-    if scrobble.timestamp > cutoff {
-        return Ok(scrobble);
-    }
-    let updated_timestamp = scrobble
-        .timestamp
-        .checked_add_days(Days::new(SCROBBLE_DAYS_OFFSET))
-        .ok_or("failed to apply offset")?;
-    Ok(Scrobble {
-        timestamp: updated_timestamp,
-        ..scrobble
-    })
-}
-
 fn main() -> std::io::Result<()> {
     let cutoff =
         DateTime::parse_from_rfc3339(SCROBBLE_CUTOFF).expect("failed to parse cutoff date");
@@ -47,7 +33,7 @@ fn main() -> std::io::Result<()> {
         .skip(3)
         .map(|input| {
             Scrobble::new(input)
-                .and_then(|scrobble| fix_scrobble(cutoff, scrobble).map(|fixed| fixed.to_string()))
+                .and_then(|scrobble| scrobble.fix(cutoff).map(|fixed| fixed.to_string()))
         })
         .intersperse(Ok("\n".to_string()))
         .collect::<Result<String, _>>()
@@ -108,6 +94,7 @@ impl std::fmt::Display for Scrobble {
 }
 
 impl Scrobble {
+    /// Parse a scrobble from scrobbler.log
     fn new(input: &str) -> Result<Self, String> {
         let (rest, tokens) = match parse_scrobble(input) {
             Ok((rest, tokens)) => (rest, tokens),
@@ -136,12 +123,29 @@ impl Scrobble {
             },
         })
     }
+
+    /// Adjust the timestamps for suspicious scrobbles.
+    fn fix(self, cutoff: DateTime<FixedOffset>) -> Result<Self, String> {
+        if self.timestamp > cutoff {
+            return Ok(self);
+        }
+        let updated_timestamp = self
+            .timestamp
+            .checked_add_days(Days::new(SCROBBLE_DAYS_OFFSET))
+            .ok_or("failed to apply offset")?;
+        Ok(Self {
+            timestamp: updated_timestamp,
+            ..self
+        })
+    }
 }
 
+/// Scrobble tokens are separated by tabs.
 fn parse_scrobble_token(input: &str) -> IResult<&str, &str> {
     terminated(take_until("\t"), char('\t'))(input)
 }
 
+/// Parse 7 fields, with an optional eigth.
 fn parse_scrobble(input: &str) -> IResult<&str, Vec<&str>> {
     count(parse_scrobble_token, 7)(input)
 }
