@@ -9,8 +9,9 @@
 
 use chrono::{DateTime, Days, FixedOffset, Local, TimeZone};
 use nom::{
-    bytes::complete::{is_not, tag, take_until},
+    bytes::complete::{is_not, tag, take_until, take_while},
     character::complete::char,
+    combinator::{eof, not},
     multi::{count, separated_list1},
     sequence::terminated,
     IResult,
@@ -106,7 +107,6 @@ impl Scrobble {
             Ok((rest, tokens)) => (rest, tokens),
             Err(e) => Err(e.to_string())?,
         };
-        dbg!(&tokens);
         Ok(Scrobble {
             artist: tokens[0].to_string(),
             album: tokens[1].to_string(),
@@ -124,9 +124,9 @@ impl Scrobble {
             timestamp: chrono::Local
                 .timestamp_opt(tokens[6].parse::<i64>().map_err(|e| e.to_string())?, 0)
                 .unwrap(),
-            track_id: match tokens.get(7) {
-                None => None,
-                Some(id) => Some(id.to_string()),
+            track_id: match rest {
+                "" => None,
+                id => Some(id.to_string()),
             },
         })
     }
@@ -149,7 +149,7 @@ impl Scrobble {
 
 /// Scrobble tokens are separated by tabs.
 fn parse_scrobble_tokens(input: &str) -> IResult<&str, Vec<&str>> {
-    separated_list1(tag("\t"), is_not("\t"))(input)
+    terminated(separated_list1(tag("\t"), take_until("\t")), tag("\t"))(input)
 }
 
 #[test]
@@ -160,5 +160,5 @@ fn parse_line() -> std::io::Result<()> {
         .skip(3)
         .map(|input| Scrobble::new(input))
         .collect();
-    Ok(println!("{scrobbles:#?}"))
+    Ok(())
 }
