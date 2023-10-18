@@ -19,11 +19,13 @@ const SCROBBLE_CUTOFF: &str = "2005-01-01T00:00:00Z";
 /// Number of days to add to the suspicious scrobbles.
 const SCROBBLE_DAYS_OFFSET: u64 = (365 * 22) + 215;
 
+/// Header for AUDIOSCROBBLER/1.1 format.
 const HEADER: &str = r#"#AUDIOSCROBBLER/1.1
 #TZ/UNKNOWN
 #CLIENT/Rockbox ipodvideo $Revision$
 "#;
 
+/// Output scrobbler.log with fixed timestamps.
 fn main() -> std::io::Result<()> {
     let cutoff =
         DateTime::parse_from_rfc3339(SCROBBLE_CUTOFF).expect("failed to parse cutoff date");
@@ -56,6 +58,7 @@ impl std::fmt::Display for Rating {
     }
 }
 
+/// Parsed scrobble record.
 #[derive(Debug)]
 struct Scrobble {
     artist: String,
