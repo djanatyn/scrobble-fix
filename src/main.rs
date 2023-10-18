@@ -9,10 +9,8 @@
 
 use chrono::{DateTime, Days, FixedOffset, Local, TimeZone};
 use nom::{
-    bytes::complete::{is_not, tag, take_until, take_while},
-    character::complete::char,
-    combinator::{eof, not},
-    multi::{count, separated_list1},
+    bytes::complete::{tag, take_until},
+    multi::separated_list1,
     sequence::terminated,
     IResult,
 };
@@ -147,7 +145,7 @@ impl Scrobble {
     }
 }
 
-/// Scrobble tokens are separated by tabs.
+/// Scrobble tokens are separated by tabs. Some fields are empty.
 fn parse_scrobble_tokens(input: &str) -> IResult<&str, Vec<&str>> {
     terminated(separated_list1(tag("\t"), take_until("\t")), tag("\t"))(input)
 }
