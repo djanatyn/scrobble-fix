@@ -9,7 +9,10 @@
 
 use chrono::{DateTime, Days, FixedOffset, Local, TimeZone};
 use nom::{
-    bytes::complete::take_until, character::complete::char, multi::count, sequence::terminated,
+    bytes::complete::{is_not, tag, take_until},
+    character::complete::char,
+    multi::{count, separated_list1},
+    sequence::terminated,
     IResult,
 };
 
@@ -99,10 +102,11 @@ impl std::fmt::Display for Scrobble {
 impl Scrobble {
     /// Parse a scrobble from scrobbler.log
     fn new(input: &str) -> Result<Self, String> {
-        let (rest, tokens) = match parse_scrobble(input) {
+        let (rest, tokens) = match parse_scrobble_tokens(input) {
             Ok((rest, tokens)) => (rest, tokens),
             Err(e) => Err(e.to_string())?,
         };
+        dbg!(&tokens);
         Ok(Scrobble {
             artist: tokens[0].to_string(),
             album: tokens[1].to_string(),
@@ -120,9 +124,9 @@ impl Scrobble {
             timestamp: chrono::Local
                 .timestamp_opt(tokens[6].parse::<i64>().map_err(|e| e.to_string())?, 0)
                 .unwrap(),
-            track_id: match rest {
-                "" => None,
-                id => Some(id.to_string()),
+            track_id: match tokens.get(7) {
+                None => None,
+                Some(id) => Some(id.to_string()),
             },
         })
     }
@@ -144,13 +148,8 @@ impl Scrobble {
 }
 
 /// Scrobble tokens are separated by tabs.
-fn parse_scrobble_token(input: &str) -> IResult<&str, &str> {
-    terminated(take_until("\t"), char('\t'))(input)
-}
-
-/// Parse 7 fields, with an optional eigth.
-fn parse_scrobble(input: &str) -> IResult<&str, Vec<&str>> {
-    count(parse_scrobble_token, 7)(input)
+fn parse_scrobble_tokens(input: &str) -> IResult<&str, Vec<&str>> {
+    separated_list1(tag("\t"), is_not("\t"))(input)
 }
 
 #[test]
